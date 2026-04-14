@@ -611,58 +611,447 @@ Goal: Become a recognized voice in your niche
 
 ---
 
-## Final Report Format
+## Final Report Format — Professional PDF Report
 
-Deliver the complete diagnostic as a structured report:
+After completing all 5 diagnostic modules, generate a polished, visually professional PDF report using ReportLab. The report should look like a premium consulting deliverable — NOT a raw text dump.
 
+### PDF Report Architecture (7 pages)
+
+| Page | Content | Design Notes |
+|------|---------|--------------|
+| 1 | Cover + Executive Summary | Teal accent band header, 4 score cards (Algorithm/Content/Alignment/Engagers), 4 key metrics row, overall assessment text |
+| 2 | Module A: Algorithm Health | Score card + detailed metrics table (Your Value vs Benchmark vs Status) |
+| 3 | Module B: Content Strategy | Score card + horizontal bar charts for content mix (actual vs ideal, teal=healthy, coral=over-indexed) + format distribution table + hook quality analysis |
+| 4 | Module C: Engagement Network | Network status badge + metrics table + top engagers table (teal header) + critical gap analysis |
+| 5 | Module D + E: Profile Alignment & Growth Prescription | Alignment score + profile issues + P0/P1/P2 priority issues with color coding (red/amber/green) |
+| 6 | Inner Circle Recommendations | 3-tier table (Tier 1 teal header, Tier 2 indigo header, Tier 3 gray header) with Name, Followers, Topics, Why |
+| 7 | 4-Week Growth Milestones + Footer | Week 1-4 milestone cards with colored left borders (coral→amber→teal→green) + Sai branding footer |
+
+### PDF Generation Code
+
+Use this Python template with ReportLab. Replace the mock `report_data` dictionary with actual diagnostic data collected from Modules A-E.
+
+```python
+import os, json, math
+from datetime import datetime
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm, inch
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    PageBreak, HRFlowable
+)
+from reportlab.graphics.shapes import Drawing, Rect, String, Line
+
+# ============================================================
+# COLOR PALETTE
+# ============================================================
+NAVY = colors.HexColor("#0F172A")
+DARK_BLUE = colors.HexColor("#1E293B")
+TEAL = colors.HexColor("#0D9488")
+TEAL_LIGHT = colors.HexColor("#CCFBF1")
+TEAL_BG = colors.HexColor("#F0FDFA")
+CORAL = colors.HexColor("#E8705A")
+CORAL_LIGHT = colors.HexColor("#FEF2F0")
+AMBER = colors.HexColor("#F59E0B")
+AMBER_LIGHT = colors.HexColor("#FFFBEB")
+GREEN = colors.HexColor("#10B981")
+GREEN_LIGHT = colors.HexColor("#ECFDF5")
+RED = colors.HexColor("#EF4444")
+RED_LIGHT = colors.HexColor("#FEF2F2")
+GRAY_50 = colors.HexColor("#F8FAFC")
+GRAY_100 = colors.HexColor("#F1F5F9")
+GRAY_200 = colors.HexColor("#E2E8F0")
+GRAY_500 = colors.HexColor("#64748B")
+GRAY_700 = colors.HexColor("#334155")
+WHITE = colors.white
+
+# ============================================================
+# DATA — Replace with actual diagnostic results
+# ============================================================
+report_data = {
+    "generated_date": datetime.now().strftime("%B %d, %Y"),
+    "account_name": "ACCOUNT_NAME",
+    "account_slug": "ACCOUNT_SLUG",
+    "account_headline": "HEADLINE",
+    "account_followers": 0,
+    "account_connections": 0,
+    "analysis_period": "PERIOD",
+    "total_posts_analyzed": 0,
+    # Module A
+    "algorithm_score": 0,       # 0-100
+    "death_spiral": False,
+    "avg_impressions": 0,
+    "avg_engagement_rate": 0.0,
+    "impression_trend": "stable",
+    "best_post_impressions": 0,
+    "worst_post_impressions": 0,
+    "avg_reactions": 0,
+    "avg_comments": 0,
+    "external_link_penalty": False,
+    # Module B
+    "content_score": 0,         # 0-50
+    "content_mix": {
+        "value_insight": {"count": 0, "pct": 0, "ideal": 57},
+        "story_learning": {"count": 0, "pct": 0, "ideal": 29},
+        "product_promo": {"count": 0, "pct": 0, "ideal": 14},
+        "repost": {"count": 0, "pct": 0, "ideal": 0},
+    },
+    "format_mix": {"text_only": 0, "image": 0, "video": 0, "carousel": 0, "poll": 0},
+    "avg_hook_score": 0.0,
+    "posting_consistency": "irregular",
+    "best_posting_time": "",
+    # Module C
+    "unique_engagers": 0,
+    "repeat_engagers": 0,
+    "engagement_reciprocity": 0.0,
+    "top_engagers": [],  # [{"name": "", "engagements": 0, "reciprocated": False}]
+    "network_health": "weak",   # weak / moderate / healthy
+    # Module D
+    "alignment_score": 0,       # 0-10
+    "profile_issues": [],       # ["issue1", "issue2"]
+    # Module E
+    "priority_issues": [],      # [{"level": "P0", "issue": "...", "fix": "..."}]
+    "inner_circle": [],         # [{"tier": 1, "name": "", "url": "", "followers": "", "topic": "", "why": ""}]
+    "milestones": {"week1": "", "week2": "", "week3": "", "week4": ""},
+}
+
+d = report_data
+
+# ============================================================
+# HELPERS
+# ============================================================
+def score_color(score, max_s):
+    pct = score / max_s
+    if pct >= 0.7: return GREEN
+    elif pct >= 0.4: return AMBER
+    else: return RED
+
+def score_bg(score, max_s):
+    pct = score / max_s
+    if pct >= 0.7: return GREEN_LIGHT
+    elif pct >= 0.4: return AMBER_LIGHT
+    else: return RED_LIGHT
+
+def score_label(score, max_s):
+    pct = score / max_s
+    if pct >= 0.7: return "Healthy"
+    elif pct >= 0.4: return "Needs Work"
+    else: return "Critical"
+
+def make_score_card(score, max_s, label, width=120, height=90):
+    drawing = Drawing(width, height)
+    col = score_color(score, max_s)
+    bg = score_bg(score, max_s)
+    drawing.add(Rect(0, 0, width, height, rx=8, ry=8, fillColor=bg, strokeColor=None))
+    drawing.add(String(width/2, height-36, f"{score}/{max_s}",
+                 fontSize=24, fontName='Helvetica-Bold', fillColor=col, textAnchor='middle'))
+    drawing.add(String(width/2, 12, label,
+                 fontSize=9, fontName='Helvetica', fillColor=GRAY_500, textAnchor='middle'))
+    return drawing
+
+def make_content_bar(actual_pct, ideal_pct, label, width=340, height=28):
+    drawing = Drawing(width, height)
+    bar_x, bar_w, bar_h = 90, width - 100, 10
+    bar_y = (height - bar_h) / 2
+    drawing.add(String(0, bar_y+1, label, fontSize=9, fontName='Helvetica', fillColor=GRAY_700))
+    drawing.add(Rect(bar_x, bar_y, bar_w, bar_h, fillColor=GRAY_100, strokeColor=None, rx=4, ry=4))
+    actual_w = max(2, bar_w * actual_pct / 100)
+    bar_col = CORAL if actual_pct > ideal_pct * 1.5 else TEAL
+    drawing.add(Rect(bar_x, bar_y, actual_w, bar_h, fillColor=bar_col, strokeColor=None, rx=4, ry=4))
+    ideal_x = bar_x + bar_w * ideal_pct / 100
+    drawing.add(Line(ideal_x, bar_y-3, ideal_x, bar_y+bar_h+3, strokeColor=GRAY_500, strokeWidth=1.5, strokeDashArray=[2,2]))
+    drawing.add(String(bar_x + actual_w + 4, bar_y+1, f"{actual_pct}%", fontSize=8, fontName='Helvetica-Bold', fillColor=bar_col))
+    return drawing
+
+def styled_table(data, col_widths, header_color=NAVY):
+    """Create a consistently styled table."""
+    t = Table(data, colWidths=col_widths)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), header_color),
+        ('TEXTCOLOR', (0,0), (-1,0), WHITE),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('GRID', (0,0), (-1,-1), 0.5, GRAY_200),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [WHITE, GRAY_50]),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+    ]))
+    return t
+
+# ============================================================
+# BUILD PDF
+# ============================================================
+OUTPUT_PATH = os.path.join("artifacts", "linkedin-diagnostic-report.pdf")
+
+doc = SimpleDocTemplate(OUTPUT_PATH, pagesize=A4,
+    leftMargin=20*mm, rightMargin=20*mm, topMargin=18*mm, bottomMargin=18*mm)
+
+styles = getSampleStyleSheet()
+styles.add(ParagraphStyle('Title2', fontSize=28, leading=34, textColor=NAVY, fontName='Helvetica-Bold', spaceAfter=4*mm))
+styles.add(ParagraphStyle('Subtitle', fontSize=12, leading=16, textColor=GRAY_500, fontName='Helvetica', spaceAfter=8*mm))
+styles.add(ParagraphStyle('Section', fontSize=18, leading=22, textColor=NAVY, fontName='Helvetica-Bold', spaceBefore=6*mm, spaceAfter=4*mm))
+styles.add(ParagraphStyle('Subsection', fontSize=13, leading=17, textColor=DARK_BLUE, fontName='Helvetica-Bold', spaceBefore=4*mm, spaceAfter=2*mm))
+styles.add(ParagraphStyle('Body', fontSize=10, leading=14, textColor=GRAY_700, fontName='Helvetica', spaceAfter=2*mm))
+styles.add(ParagraphStyle('Small', fontSize=8.5, leading=12, textColor=GRAY_500, fontName='Helvetica'))
+styles.add(ParagraphStyle('Score', fontSize=36, leading=40, textColor=TEAL, fontName='Helvetica-Bold', alignment=TA_CENTER))
+styles.add(ParagraphStyle('ScoreLbl', fontSize=10, leading=13, textColor=GRAY_500, fontName='Helvetica', alignment=TA_CENTER))
+styles.add(ParagraphStyle('P0', fontSize=10, leading=14, textColor=RED, fontName='Helvetica-Bold', spaceAfter=1*mm))
+styles.add(ParagraphStyle('P1', fontSize=10, leading=14, textColor=AMBER, fontName='Helvetica-Bold', spaceAfter=1*mm))
+styles.add(ParagraphStyle('P2', fontSize=10, leading=14, textColor=GREEN, fontName='Helvetica-Bold', spaceAfter=1*mm))
+styles.add(ParagraphStyle('Fix', fontSize=9.5, leading=13, textColor=GRAY_700, fontName='Helvetica', leftIndent=12, spaceAfter=3*mm))
+
+W, H = A4
+els = []
+
+# --- PAGE 1: COVER + EXECUTIVE SUMMARY ---
+band = Drawing(W - 40*mm, 6)
+band.add(Rect(0, 0, W - 40*mm, 6, fillColor=TEAL, strokeColor=None, rx=3, ry=3))
+els.append(band)
+els.append(Spacer(1, 6*mm))
+els.append(Paragraph("LinkedIn Account<br/>Diagnostic Report", styles['Title2']))
+els.append(Paragraph(
+    f'{d["account_name"]} &middot; @{d["account_slug"]}<br/>'
+    f'{d["account_headline"]}<br/>'
+    f'Analysis Period: {d["analysis_period"]} &middot; Generated: {d["generated_date"]}',
+    styles['Subtitle']))
+els.append(HRFlowable(width="100%", thickness=1, color=GRAY_200, spaceAfter=5*mm))
+els.append(Paragraph("Executive Summary", styles['Section']))
+
+# Score cards row
+cards = [[make_score_card(d["algorithm_score"], 100, "Algorithm Health"),
+          make_score_card(d["content_score"], 50, "Content Strategy"),
+          make_score_card(d["alignment_score"], 10, "Profile Alignment"),
+          make_score_card(d["unique_engagers"], 100, "Unique Engagers")]]
+ct = Table(cards, colWidths=[130]*4)
+ct.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+els.append(ct)
+els.append(Spacer(1, 5*mm))
+
+# Key metrics
+m1 = [[Paragraph(f'<font size="18" color="{TEAL.hexval()}">{d["account_followers"]}</font>', styles['Score']),
+       Paragraph(f'<font size="18" color="{TEAL.hexval()}">{d["avg_impressions"]}</font>', styles['Score']),
+       Paragraph(f'<font size="18" color="{TEAL.hexval()}">{d["avg_engagement_rate"]}%</font>', styles['Score']),
+       Paragraph(f'<font size="18" color="{TEAL.hexval()}">{d["total_posts_analyzed"]}</font>', styles['Score'])],
+      [Paragraph("Followers", styles['ScoreLbl']),
+       Paragraph("Avg Impressions", styles['ScoreLbl']),
+       Paragraph("Engagement Rate", styles['ScoreLbl']),
+       Paragraph("Posts Analyzed", styles['ScoreLbl'])]]
+mt = Table(m1, colWidths=[130]*4)
+mt.setStyle(TableStyle([('ALIGN',(0,0),(-1,-1),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+    ('BACKGROUND',(0,0),(-1,-1),GRAY_50),('BOX',(0,0),(-1,-1),0.5,GRAY_200),
+    ('TOPPADDING',(0,0),(-1,0),10),('BOTTOMPADDING',(0,-1),(-1,-1),10)]))
+els.append(mt)
+els.append(Spacer(1, 5*mm))
+
+status_text = score_label(d["algorithm_score"], 100)
+ac = score_color(d["algorithm_score"], 100)
+els.append(Paragraph(
+    f'<font color="{ac.hexval()}">Overall: {status_text}</font> — '
+    f'Your account shows signs of algorithmic throttling. See the detailed modules below for root causes and the fix plan.',
+    styles['Body']))
+
+# --- PAGE 2: ALGORITHM HEALTH ---
+els.append(PageBreak())
+els.append(Paragraph("Module A: Algorithm Health Score", styles['Section']))
+els.append(make_score_card(d["algorithm_score"], 100, "Algorithm Health", 150, 100))
+els.append(Spacer(1, 3*mm))
+els.append(Paragraph("Key Findings", styles['Subsection']))
+els.append(styled_table([
+    ["Metric", "Your Value", "Benchmark", "Status"],
+    ["Avg Impressions/Post", str(d["avg_impressions"]), "1,500+",
+     "\u26a0\ufe0f Below" if d["avg_impressions"] < 1500 else "\u2705 Good"],
+    ["Avg Engagement Rate", f'{d["avg_engagement_rate"]}%', "3.5%+",
+     "\u26a0\ufe0f Below" if d["avg_engagement_rate"] < 3.5 else "\u2705 Good"],
+    ["Avg Reactions/Post", str(d["avg_reactions"]), "25+",
+     "\u26a0\ufe0f Below" if d["avg_reactions"] < 25 else "\u2705 Good"],
+    ["Avg Comments/Post", str(d["avg_comments"]), "8+",
+     "\u26a0\ufe0f Below" if d["avg_comments"] < 8 else "\u2705 Good"],
+    ["Impression Trend", d["impression_trend"].title(), "Rising",
+     "\U0001f534 Critical" if d["impression_trend"] == "declining" else "\u2705 Good"],
+    ["Ext. Link Penalty", "Yes" if d["external_link_penalty"] else "No", "No",
+     "\U0001f534 Critical" if d["external_link_penalty"] else "\u2705 Good"],
+    ["Best Post", f'{d["best_post_impressions"]} imp.', "—", "—"],
+    ["Worst Post", f'{d["worst_post_impressions"]} imp.', "—", "—"],
+], col_widths=[120, 90, 80, 80]))
+
+if d["death_spiral"]:
+    els.append(Spacer(1, 3*mm))
+    els.append(Paragraph(
+        '<font color="#EF4444"><b>WARNING: DEATH SPIRAL DETECTED</b></font> — '
+        'Impressions are declining post-over-post. Immediate intervention required.',
+        styles['Body']))
+
+# --- PAGE 3: CONTENT STRATEGY ---
+els.append(PageBreak())
+els.append(Paragraph("Module B: Content Strategy Audit", styles['Section']))
+els.append(make_score_card(d["content_score"], 50, "Content Score", 150, 100))
+els.append(Spacer(1, 3*mm))
+els.append(Paragraph("Content Mix Analysis", styles['Subsection']))
+els.append(Paragraph("Your content mix vs. the ideal 4:2:1 ratio (57% Value : 29% Story : 14% Product):", styles['Body']))
+for ck, cl in [("value_insight","Value / Insight"),("story_learning","Story / Learning"),("product_promo","Product / CTA"),("repost","Repost")]:
+    v = d["content_mix"][ck]
+    els.append(make_content_bar(v["pct"], v["ideal"], cl))
+    els.append(Spacer(1, 1*mm))
+els.append(Spacer(1, 3*mm))
+pp = d["content_mix"]["product_promo"]["pct"]
+vp = d["content_mix"]["value_insight"]["pct"]
+els.append(Paragraph(
+    f'<font color="{CORAL.hexval()}"><b>Problem:</b></font> {pp}% of content is product/CTA '
+    f'(ideal: 14%). Only {vp}% is value content (ideal: 57%). '
+    f'LinkedIn\'s algorithm treats heavily promotional accounts as advertisers and reduces organic reach.',
+    styles['Body']))
+els.append(Paragraph("Content Format Distribution", styles['Subsection']))
+fm = d["format_mix"]
+tp = d["total_posts_analyzed"] or 1
+els.append(styled_table([
+    ["Format", "Count", "% of Total", "Avg Reach Multiplier"],
+    ["Text Only", str(fm["text_only"]), f'{round(fm["text_only"]/tp*100)}%', "1.0x (baseline)"],
+    ["Image", str(fm["image"]), f'{round(fm["image"]/tp*100)}%', "1.2-1.5x"],
+    ["Carousel/PDF", str(fm["carousel"]), f'{round(fm["carousel"]/tp*100)}%', "2.0-3.5x"],
+    ["Video", str(fm["video"]), f'{round(fm["video"]/tp*100)}%', "2.0-5.0x"],
+    ["Poll", str(fm["poll"]), f'{round(fm["poll"]/tp*100)}%', "1.5-2.5x"],
+], col_widths=[100, 60, 80, 130]))
+els.append(Spacer(1, 3*mm))
+hs = d["avg_hook_score"]
+els.append(Paragraph("Hook Quality", styles['Subsection']))
+els.append(Paragraph(
+    f'Average hook score: <font color="{score_color(int(hs*10),100).hexval()}"><b>{hs}/10</b></font>. '
+    f'Strong hooks (data openers, contrarian takes) score 8+ and drive 3x more "see more" clicks.',
+    styles['Body']))
+
+# --- PAGE 4: ENGAGEMENT NETWORK ---
+els.append(PageBreak())
+els.append(Paragraph("Module C: Engagement Network", styles['Section']))
+nh = d["network_health"].upper()
+nc = RED if nh == "WEAK" else (AMBER if nh == "MODERATE" else GREEN)
+els.append(Paragraph(f'Network Status: <font color="{nc.hexval()}"><b>{nh}</b></font>', styles['Subsection']))
+els.append(styled_table([
+    ["Metric", "Your Value", "Target", "Status"],
+    ["Unique Engagers (30d)", str(d["unique_engagers"]), "50+",
+     "\u26a0\ufe0f Low" if d["unique_engagers"] < 50 else "\u2705 Good"],
+    ["Repeat Engagers (2+ times)", str(d["repeat_engagers"]), "20+",
+     "\U0001f534 Critical" if d["repeat_engagers"] < 20 else "\u2705 Good"],
+    ["Engagement Reciprocity", f'{int(d["engagement_reciprocity"]*100)}%', "40%+",
+     "\U0001f534 Critical" if d["engagement_reciprocity"] < 0.4 else "\u2705 Good"],
+], col_widths=[140, 90, 80, 80]))
+els.append(Spacer(1, 3*mm))
+els.append(Paragraph("Top Engagers", styles['Subsection']))
+eng_rows = [["Name", "Engagements", "Reciprocated"]]
+for e in d["top_engagers"]:
+    eng_rows.append([e["name"], str(e["engagements"]), "\u2705 Yes" if e["reciprocated"] else "\u274c No"])
+els.append(styled_table(eng_rows, col_widths=[160, 100, 100], header_color=TEAL))
+els.append(Spacer(1, 3*mm))
+els.append(Paragraph(
+    f'<font color="{CORAL.hexval()}"><b>Critical gap:</b></font> Only {d["repeat_engagers"]} repeat engagers. '
+    f'LinkedIn shows posts to a small test audience first — without a reliable inner circle of 20+ regular engagers, '
+    f'most posts die in the first 60 minutes.',
+    styles['Body']))
+
+# --- PAGE 5: PROFILE ALIGNMENT + PRESCRIPTION ---
+els.append(PageBreak())
+els.append(Paragraph("Module D: Profile-Content Alignment", styles['Section']))
+els.append(make_score_card(d["alignment_score"], 10, "Alignment Score", 150, 100))
+els.append(Spacer(1, 3*mm))
+els.append(Paragraph("Issues Found", styles['Subsection']))
+for issue in d["profile_issues"]:
+    els.append(Paragraph(f'\u2022 {issue}', styles['Body']))
+els.append(Spacer(1, 6*mm))
+els.append(Paragraph("Module E: Growth Prescription", styles['Section']))
+els.append(Paragraph("Priority Issues (Ranked by Impact)", styles['Subsection']))
+for pi in d["priority_issues"]:
+    lv = pi["level"]
+    if lv == "P0": sn, pf = 'P0', "\U0001f534 P0 \u2014 Fix Immediately"
+    elif lv == "P1": sn, pf = 'P1', "\U0001f7e1 P1 \u2014 Fix This Week"
+    else: sn, pf = 'P2', "\U0001f7e2 P2 \u2014 Optimize Over Time"
+    els.append(Paragraph(f'{pf}: {pi["issue"]}', styles[sn]))
+    els.append(Paragraph(f'\u2192 {pi["fix"]}', styles['Fix']))
+
+# --- PAGE 6: INNER CIRCLE ---
+els.append(PageBreak())
+els.append(Paragraph("Your Recommended Inner Circle", styles['Section']))
+els.append(Paragraph(
+    "Engage with these people daily (Tier 1), 3x/week (Tier 2), or 2x/week (Tier 3). "
+    "Within 2-3 weeks they will recognize your name and begin reciprocating.",
+    styles['Body']))
+tier_cfg = {1: ("\U0001f947 Tier 1 \u2014 Core Circle (engage daily)", TEAL),
+            2: ("\U0001f948 Tier 2 \u2014 Extended Circle (engage 3x/week)", colors.HexColor("#6366F1")),
+            3: ("\U0001f949 Tier 3 \u2014 Aspirational (engage 2x/week)", GRAY_500)}
+for tn in [1, 2, 3]:
+    label, hc = tier_cfg[tn]
+    els.append(Paragraph(label, styles['Subsection']))
+    tp = [p for p in d["inner_circle"] if p["tier"] == tn]
+    if tp:
+        rows = [["Name", "Followers", "Topics", "Why"]]
+        for p in tp:
+            rows.append([p["name"], p["followers"], p["topic"], p["why"]])
+        els.append(styled_table(rows, col_widths=[90, 60, 100, 150], header_color=hc))
+    else:
+        els.append(Paragraph("(to be populated during diagnostic)", styles['Small']))
+    els.append(Spacer(1, 3*mm))
+
+# --- PAGE 7: MILESTONES + FOOTER ---
+els.append(PageBreak())
+els.append(Paragraph("Your 4-Week Growth Milestones", styles['Section']))
+els.append(Paragraph(
+    "Follow this plan consistently for measurable improvement in reach, engagement, and follower growth.",
+    styles['Body']))
+week_cfg = [("week1","Week 1: Foundation",CORAL),("week2","Week 2: Recognition",AMBER),
+            ("week3","Week 3: Momentum",TEAL),("week4","Week 4: Breakthrough",GREEN)]
+for wk, wl, wc in week_cfg:
+    mb = Drawing(W - 40*mm, 50)
+    mb.add(Rect(0, 0, W - 40*mm, 50, rx=6, ry=6, fillColor=GRAY_50, strokeColor=wc, strokeWidth=1.5))
+    mb.add(Rect(0, 0, 5, 50, fillColor=wc, strokeColor=None))
+    mb.add(String(14, 32, wl, fontSize=11, fontName='Helvetica-Bold', fillColor=wc))
+    txt = d["milestones"].get(wk, "")
+    if len(txt) > 90: txt = txt[:87] + "..."
+    mb.add(String(14, 12, txt, fontSize=8.5, fontName='Helvetica', fillColor=GRAY_700))
+    els.append(mb)
+    els.append(Spacer(1, 3*mm))
+
+# Footer
+els.append(Spacer(1, 8*mm))
+els.append(HRFlowable(width="100%", thickness=1, color=GRAY_200, spaceAfter=3*mm))
+els.append(Paragraph(
+    f'Generated by <font color="{TEAL.hexval()}"><b>Sai</b></font> \u2014 LinkedIn Account Diagnostic Skill | '
+    f'{d["generated_date"]} | simular.ai',
+    ParagraphStyle('Footer', fontSize=8, textColor=GRAY_500, fontName='Helvetica', alignment=TA_CENTER)))
+
+doc.build(els)
+print(f"PDF saved to: {OUTPUT_PATH}")
 ```
-==============================================================
-    LINKEDIN ACCOUNT DIAGNOSTIC REPORT
-    Generated: [Date]
-    Account: [Name] (@[slug])
-==============================================================
 
-📊 EXECUTIVE SUMMARY
-Algorithm Health Score:     [X/100]  [emoji indicator]
-Content Strategy Score:     [X/50]   [emoji indicator]
-Engagement Network:         [status] [emoji indicator]
-Profile Alignment:          [X/10]   [emoji indicator]
-Overall Assessment:         [one-line summary]
+### How to Use This Template
 
-⚠️ [DEATH SPIRAL STATUS if applicable]
+1. **Collect data** in Modules A-E and store results in the `report_data` dictionary structure shown above.
+2. **Fill in all fields** — every module produces specific metrics that map directly to the dictionary keys.
+3. **Run the script** via `exec()` to generate the PDF.
+4. The PDF is saved to the `artifacts/` folder and automatically synced to the user for download.
 
----
+### Design Principles
 
-🔍 MODULE A: ALGORITHM HEALTH
-[Detailed findings]
-
-📝 MODULE B: CONTENT STRATEGY
-[Content scorecard + analysis]
-
-🤝 MODULE C: ENGAGEMENT NETWORK
-[Network health + gaps]
-
-🎯 MODULE D: PROFILE ALIGNMENT
-[Alignment check results]
-
-💊 MODULE E: GROWTH PRESCRIPTION
-[Priority issues + daily action plan + content fix plan]
-
-👥 YOUR INNER CIRCLE
-[Tiered list with names, URLs, and engagement suggestions]
-
-📈 YOUR GROWTH MILESTONES
-[Week-by-week targets]
-
-==============================================================
-```
+- **Color coding**: Teal = healthy/positive, Coral = warning/over-indexed, Red = critical, Amber = needs work, Green = good
+- **Score cards**: Rounded rectangle backgrounds with large score numbers, color-coded by health status
+- **Tables**: Navy header rows, alternating white/gray zebra stripes, 0.5pt grid lines
+- **Content mix bars**: Horizontal bars with actual value (teal or coral) vs. ideal marker (dashed line)
+- **Priority issues**: P0 (red), P1 (amber), P2 (green) with arrow-prefixed fix text
+- **Inner circle tiers**: Tier 1 (teal header), Tier 2 (indigo header), Tier 3 (gray header)
+- **Milestone cards**: Left-colored border bars progressing coral → amber → teal → green
 
 ## Export Options
 
-After presenting the report, offer:
-1. **Google Sheet** - Export raw post data + inner circle list to a spreadsheet for tracking
-2. **Google Doc** - Export the full report as a formatted document
-3. **Track progress** - Offer to re-run the diagnostic in 2-4 weeks to measure improvement
+After generating the PDF report, offer these additional exports:
+
+1. **PDF Report** (primary) — The professional diagnostic report generated above. Saved to `artifacts/linkedin-diagnostic-report.pdf`.
+2. **Google Sheet** — Export raw post data + inner circle list to a spreadsheet for ongoing tracking. Use `google.sheets.createSpreadsheet()` with tabs: "Post Data", "Inner Circle", "Weekly Metrics".
+3. **Google Doc** — Export the full report as a formatted Google Doc for sharing and collaboration. Use `google.docs.createDocument()` + `batchUpdate()` to insert formatted text.
+4. **Track progress** — Offer to re-run the diagnostic in 2-4 weeks to measure improvement. Save baseline metrics for comparison.
 
 ## Safety Rules
 - **Read-only**: This skill only reads data, never posts, comments, likes, or sends requests
